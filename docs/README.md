@@ -1,5 +1,5 @@
 # FreePastry
-This is a fork from the original open-source [FreePastry implementation](http://www.freepastry.org/FreePastry/) containing bugfixes and is used in las2peer. 
+This is a fork from the Advanced Community Information Systems, and is used for CSE293 course. 
 The most notable changes compared to the original are:
 - It is configured as an eclipse-project
 - Possesses a memory leak fix
