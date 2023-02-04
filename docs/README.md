@@ -6,7 +6,7 @@ The most notable changes compared to the original are:
 - Is compatible with Java 17
 
 
-Build
+# Build
 --------
 To build the jar, simply execute the following command on your shell:
 
@@ -16,3 +16,5 @@ ant jar
 
 
 For further documentation, you can go read the original and latest [README](http://www.freepastry.org/FreePastry/README-2.1.html) file. 
+
+# Project Goal: Let Pastry Store Stream Data
