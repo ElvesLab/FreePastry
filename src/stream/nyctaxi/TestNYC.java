@@ -7,6 +7,7 @@ import java.util.HashMap;
 
 import rice.Continuation;
 import rice.environment.Environment;
+import rice.p2p.commonapi.Id;
 import rice.p2p.past.Past;
 import rice.p2p.past.PastContent;
 import rice.p2p.past.PastImpl;
@@ -27,13 +28,12 @@ import stream.etl.CSVReader;
 public class TestNYC {
 
     public static void main(String[] args) throws IOException {
-        String filePath = "/home/parallels/Desktop/taxi_csvs/test.csv";
+        String filePath = "/home/parallels/Desktop/taxi_csvs/taxi_1.csv";
         CSVReader reader = new CSVReader()
-                        .filePath(filePath)
-                        .rowKeyIdx(0)
-                        .versionIdx(3, true)
-                        .buildReader();
-        
+                .filePath(filePath)
+                .rowKeyIdx(0)
+                .versionIdx(3, true)
+                .buildReader();
 
         if (reader == null) {
             System.err.println("Error in intilizaling reader");
@@ -45,42 +45,69 @@ public class TestNYC {
 
         Environment env = new Environment();
         PastryIdFactory localFactory = new rice.pastry.commonapi.PastryIdFactory(env);
-        env.getParameters().setString("nat_search_policy","never");
+        env.getParameters().setString("nat_search_policy", "never");
         NodeIdFactory nidFactory = new RandomNodeIdFactory(env);
         PastryNodeFactory factory = new SocketPastryNodeFactory(nidFactory, bootport, env);
         PastryNode node = factory.newNode();
         PastryIdFactory idf = new rice.pastry.commonapi.PastryIdFactory(env);
-        String storageDirectory = "./storage"+node.getId().hashCode();
+        String storageDirectory = "./storage" + node.getId().hashCode();
 
         // create the persistent part
         Storage stor = new PersistentStorage(idf, storageDirectory, 4 * 1024 * 1024, node
-            .getEnvironment());
+                .getEnvironment());
         Past app = new PastImpl(node, new StorageManagerImpl(idf, stor, new LRUCache(
-        new MemoryStorage(idf), 512 * 1024, node.getEnvironment())), 0, "");
+                new MemoryStorage(idf), 512 * 1024, node.getEnvironment())), 0, "");
 
         node.boot(bootaddress);
 
         HashMap<String, String> data;
         try {
             data = reader.readOneLine();
-            while (data != null) {
-                System.out.println(data);
+            int times = 0;
+            while (data != null && times < 3) {
+                // System.out.println(data);
 
-                PastContent pContent = new MyPastContent(localFactory.buildId(data.get("other")), data.get("other"));
+                Id tempId = localFactory.buildId(data.get("key"));
+                PastContent pContent = new MyPastContent(tempId, data.get("other") + "|" + times);
                 app.insert(pContent, new Continuation<Boolean[], Exception>() {
                     public void receiveResult(Boolean[] results) {
-                        System.out.println("rly");
+                        System.out.println("Inserted " + tempId + " " + data.get("key"));
                     }
 
                     public void receiveException(Exception result) {
+                        System.out.println("Inserted Failure");
+                        System.out.println(result.getStackTrace());
                     }
                 });
-                
+
+                try {
+                    env.getTimeSource().sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                times++;
+
                 // break;
                 // get node in pastry, and insert the data
+            }
+
+            for (int i = 0; i < 5; i++) {
+                app.lookup(localFactory.buildId(data.get("key")), false, new Continuation<PastContent, Exception>() {
+                    public void receiveException(Exception result) {
+                        System.out.println("No Result " + result.toString());
+                        System.out.println(result.getStackTrace());
+                    }
+
+                    @Override
+                    public void receiveResult(PastContent result) {
+                        System.out.println("Got it  " + result.toString());
+                    }
+                });
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 }
