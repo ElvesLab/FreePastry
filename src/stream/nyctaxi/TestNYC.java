@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
+import java.util.Vector;
 
 import rice.Continuation;
 import rice.environment.Environment;
@@ -48,17 +49,43 @@ public class TestNYC {
         env.getParameters().setString("nat_search_policy", "never");
         NodeIdFactory nidFactory = new RandomNodeIdFactory(env);
         PastryNodeFactory factory = new SocketPastryNodeFactory(nidFactory, bootport, env);
-        PastryNode node = factory.newNode();
-        PastryIdFactory idf = new rice.pastry.commonapi.PastryIdFactory(env);
-        String storageDirectory = "./storage" + node.getId().hashCode();
-
+        
         // create the persistent part
-        Storage stor = new PersistentStorage(idf, storageDirectory, 4 * 1024 * 1024, node
-                .getEnvironment());
-        Past app = new PastImpl(node, new StorageManagerImpl(idf, stor, new LRUCache(
-                new MemoryStorage(idf), 512 * 1024, node.getEnvironment())), 0, "");
+        
+        Vector<Past> appList = new Vector<Past>();
 
-        node.boot(bootaddress);
+        for (int i = 0; i < 5; i++) {
+            PastryNode node = factory.newNode();
+            PastryIdFactory idf = new rice.pastry.commonapi.PastryIdFactory(env);
+            String storageDirectory = "./storage" + i + node.getId().hashCode();
+            Storage stor = new PersistentStorage(idf, storageDirectory, 4 * 1024 * 1024, node
+                    .getEnvironment());
+            Past app = new PastImpl(node, new StorageManagerImpl(idf, stor, new LRUCache(
+                    new MemoryStorage(idf), 512 * 1024, node.getEnvironment())), 0, "");
+
+            appList.add(app);
+            node.boot(bootaddress);
+
+            synchronized (node) {
+                while (!node.isReady() && !node.joinFailed()) {
+                    // delay so we don't busy-wait
+                    try {
+                        node.wait(500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    // abort if can't join
+                    if (node.joinFailed()) {
+                        throw new IOException("Could not join the FreePastry ring.  Reason:" + node.joinFailedReason());
+                    }
+                }
+            }
+
+            System.out.println("Finished creating new node " + node);
+        }
+        
+
 
         HashMap<String, String> data;
         try {
@@ -69,7 +96,7 @@ public class TestNYC {
 
                 Id tempId = localFactory.buildId(data.get("key"));
                 PastContent pContent = new MyPastContent(tempId, data.get("other") + "|" + times);
-                app.insert(pContent, new Continuation<Boolean[], Exception>() {
+                appList.get(env.getRandomSource().nextInt(5)).insert(pContent, new Continuation<Boolean[], Exception>() {
                     public void receiveResult(Boolean[] results) {
                         System.out.println("Inserted " + tempId + " " + data.get("key"));
                     }
@@ -93,7 +120,7 @@ public class TestNYC {
             }
 
             for (int i = 0; i < 5; i++) {
-                app.lookup(localFactory.buildId(data.get("key")), false, new Continuation<PastContent, Exception>() {
+                appList.get(env.getRandomSource().nextInt(5)).lookup(localFactory.buildId(data.get("key")), false, new Continuation<PastContent, Exception>() {
                     public void receiveException(Exception result) {
                         System.out.println("No Result " + result.toString());
                         System.out.println(result.getStackTrace());
