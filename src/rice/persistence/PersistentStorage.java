@@ -337,14 +337,18 @@ public class PersistentStorage implements Storage {
         if (logger.level <= Logger.FINER) logger.log("Storing object " + obj + " under id " + id.toStringFull() + " in root " + appDirectory);
         
         /* first, create a temporary file */
-        File objFile = getFile(id);
-        File transcFile = makeTemporaryFile(id);
+        // encode the id with version
+        long ts = environment.getTimeSource().currentTimeMillis();
+        Id newId = factory.buildId(id.toStringFull() + ts);
+
+        File objFile = getFile(newId);
+        File transcFile = makeTemporaryFile(newId);
         
         if (logger.level <= Logger.FINER) logger.log("Writing object " + obj + " to temporary file " + transcFile + " and renaming to " + objFile);
 
         /* next, write out the data to a new copy of the original file */
         try {
-          writeObject(obj, metadata, id, environment.getTimeSource().currentTimeMillis(), transcFile);
+          writeObject(obj, metadata, newId, environment.getTimeSource().currentTimeMillis(), transcFile);
           if (logger.level <= Logger.FINER) logger.log("Done writing object " + obj + " under id " + id.toStringFull() + " in root " + appDirectory);
 
           /* abort if this will put us over quota */
@@ -369,8 +373,15 @@ public class PersistentStorage implements Storage {
         /* mark the metadata cache of this file to be dirty */
         if (index) {
           synchronized (PersistentStorage.this.metadata) {
-            PersistentStorage.this.metadata.put(id, metadata);
-            dirty.add(objFile.getParentFile());
+            // make metadata a two-level index
+            // original id -> id with version
+            Object versions = PersistentStorage.this.metadata.get(id);
+            if (versions == null) {
+              PersistentStorage.this.metadata.put(id, String.valueOf(ts));
+            } else {
+              PersistentStorage.this.metadata.put(id, versions + ":" + String.valueOf(ts));
+            }
+            
           }
         }
                 
@@ -527,7 +538,24 @@ public class PersistentStorage implements Storage {
           synchronized(statLock) { numReads++; }
           
           /* get the file */
-          File objFile = getFile(id);
+          Id fetchedId = null;
+          synchronized (PersistentStorage.this.metadata) {
+            String versionString = PersistentStorage.this.metadata.get(id).toString();
+            String[] versions = versionString.split(":");
+            Id[] storedKeys = new Id[versions.length];
+            for (int i = 0; i < versions.length; i++) {
+              storedKeys[i] = factory.buildId(id.toStringFull() + versions[i]);
+            }
+
+            Random rand = new Random();
+            fetchedId = storedKeys[rand.nextInt(versions.length)];
+          }
+
+          if (fetchedId == null) {
+            return null;
+          }
+
+          File objFile = getFile(fetchedId);
           
           try { 
             /* and make sure that it exists */

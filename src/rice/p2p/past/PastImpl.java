@@ -730,11 +730,12 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
       }
     }, new StandardContinuation(command) {
       public void receiveResult(final Object array) {
-        cache(obj, new SimpleContinuation()  {
-          public void receiveResult(Object o) {
-            parent.receiveResult(array);
-          }
-        });
+        // block cache for now
+        // cache(obj, new SimpleContinuation()  {
+        //   public void receiveResult(Object o) {
+        //     parent.receiveResult(array);
+        //   }
+        // });
       }
     },
     socketStrategy.sendAlongSocket(SocketStrategy.TYPE_INSERT, obj));
@@ -1031,14 +1032,15 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
                 public void receiveResult(Object o) {
                   try {
                     // allow the object to check the insert, and then insert the data
-                    PastContent content = imsg.getContent().checkInsert(msgid, (PastContent) o);
+                    // PastContent content = imsg.getContent().checkInsert(msgid, (PastContent) o);
+                    PastContent content = imsg.getContent(); // block checkinsert
                     storage.store(msgid, null, content, new StandardContinuation(parent) {
                       public void receiveResult(Object result) {
                         getResponseContinuation(msg).receiveResult(result);
                         lockManager.unlock(msgid);
                       }
                     });
-                  } catch (PastException e) {
+                  } catch (Exception e) {
                     parent.receiveException(e);
                   }
                 }
