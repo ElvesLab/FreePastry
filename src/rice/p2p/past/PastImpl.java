@@ -58,6 +58,9 @@ import rice.p2p.replication.manager.*;
 import rice.p2p.util.MathUtils;
 import rice.p2p.util.rawserialization.*;
 import rice.persistence.*;
+import rice.pastry.PastryNode;
+import rice.pastry.standard.RandomNodeIdFactory;
+import rice.pastry.commonapi.PastryIdFactory;
 
 /**
  * @(#) PastImpl.java
@@ -82,6 +85,7 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
   
 
   // ----- VARIABLE FIELDS -----
+  protected PastryNode thePastryNode;
 
   // this application's endpoint
   protected Endpoint endpoint;
@@ -189,6 +193,31 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
     this(node, manager, backup, replicas, instance, policy, trash, false);
   }
   
+  public PastryNode getPastryNode() {
+    return thePastryNode;
+  }
+  public void scaleUp(PastryNode node, int scalingFactor) throws Exception{
+      int curCount = node.numVnodes();
+      System.out.println("Cur count: " + curCount);
+      if (curCount >= scalingFactor) return;
+
+      while (curCount < scalingFactor) {
+        System.out.println("Hello");
+        PastryNode vnode = node.createVnodeInstance();
+        System.out.println("Created vnode instance");
+        // Create application:
+        Past app = new PastImpl(vnode, null, 0, ""); // Where do we store the apps on the node?
+        vnode.addPastApp(app); 
+        System.out.println("Finished creating new node " + vnode);
+        curCount++;
+        System.out.println("Cur count: " + curCount);
+      }
+  }
+
+  public void scaleDown() {
+
+  }
+
   /**
    * 
    * @param node
@@ -234,12 +263,15 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
     this.outstanding = new Hashtable();
     this.timers = new Hashtable();
     this.replicationFactor = replicas;
-    
+    this.thePastryNode = (PastryNode)node;
+
     //   log.addHandler(new ConsoleHandler());
     //   log.setLevel(Level.FINE);
     //   log.getHandlers()[0].setLevel(Level.FINE);
+    if (this.thePastryNode.isVnode() == false) {
+        this.replicaManager = buildReplicationManager(node, instance);
+    } 
     
-    this.replicaManager = buildReplicationManager(node, instance);
     
     this.lockManager = new LockManagerImpl(environment);
     
@@ -723,6 +755,10 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
     if (logger.level <= Logger.FINER) logger.log("Inserting the object " + obj + " with the id " + obj.getId());
     
     if (logger.level <= Logger.FINEST) logger.log(" Inserting data of class " + obj.getClass().getName() + " under " + obj.getId().toStringFull());
+    if (thePastryNode.isVnode() == true) {
+      //Forward it to the parent
+      return;
+    }
 
     doInsert(obj.getId(), new MessageBuilder() {
       public PastMessage buildMessage() {
@@ -977,7 +1013,7 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
       Id id = lmsg.getId();
 
       // if it is a request, look in the cache
-      if (! lmsg.isResponse()) {
+      if (! lmsg.isResponse() && thePastryNode.isVnode() == false) {
         if (logger.level <= Logger.FINER) logger.log("Lookup message " + lmsg + " is a request; look in the cache");
         if (storage.exists(id)) {
           // deliver the message, which will do what we want
@@ -989,7 +1025,7 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
     } else if (internal instanceof LookupHandlesMessage) {
       LookupHandlesMessage lmsg = (LookupHandlesMessage) internal;
       
-      if (! lmsg.isResponse()) {
+      if (! lmsg.isResponse()  && thePastryNode.isVnode() == false) {
         if (endpoint.replicaSet(lmsg.getId(), lmsg.getMax()).size() == lmsg.getMax()) {          
           if (logger.level <= Logger.FINE) logger.log("Hijacking lookup handles request for " + lmsg.getId());
           
@@ -1021,7 +1057,7 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
         final InsertMessage imsg = (InsertMessage) msg;        
         
         // make sure the policy allows the insert
-        if (policy.allowInsert(imsg.getContent())) {
+        if (thePastryNode.isVnode() == false && policy.allowInsert(imsg.getContent())) {
           inserts++;
           final Id msgid = imsg.getContent().getId();
           
@@ -1185,6 +1221,7 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
    * @param range the requested range
    */
   public IdSet scan(IdRange range) {
+    if (thePastryNode.isVnode()) return null;
     return storage.getStorage().scan(range);
   }
   
@@ -1196,6 +1233,7 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
    * @param range the requested range
    */
   public IdSet scan() {
+    if (thePastryNode.isVnode()) return null;
     return storage.getStorage().scan();
   }
   
@@ -1226,6 +1264,7 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
   }
 
   public void reInsert(Id id, Continuation command) {
+    if (thePastryNode.isVnode() == true) return;
     storage.getObject(id, new StandardContinuation(command) {
       public void receiveResult(final Object o) {
         insert((PastContent)o, new StandardContinuation(parent) {

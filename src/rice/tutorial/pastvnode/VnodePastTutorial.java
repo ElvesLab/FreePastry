@@ -37,7 +37,7 @@ advised of the possibility of such damage.
 /*
  * Created on Jun 24, 2005
  */
-package rice.tutorial.past;
+package rice.tutorial.pastvnode;
 
 import java.io.IOException;
 import java.net.*;
@@ -59,7 +59,7 @@ import rice.persistence.*;
  * 
  * @author Jeff Hoye, Jim Stewart, Ansley Post
  */
-public class PastTutorial {
+public class VnodePastTutorial {
   /**
    * this will keep track of our Past applications
    */
@@ -77,7 +77,7 @@ public class PastTutorial {
    * @param numNodes the number of nodes to create in this JVM
    * @param env the Environment
    */
-  public PastTutorial(int bindport, InetSocketAddress bootaddress,
+  public VnodePastTutorial(int bindport, InetSocketAddress bootaddress,
       int numNodes, final Environment env) throws Exception {
     
     // Generate the NodeIds Randomly
@@ -88,29 +88,19 @@ public class PastTutorial {
         bindport, env);
 
     // loop to construct the nodes/apps
-    for (int curNode = 0; curNode < numNodes; curNode++) {      
+    for (int curNode = 0; curNode < numNodes; curNode++) {
+      // This will return null if we there is no node at that location
+      NodeHandle bootHandle = ((SocketPastryNodeFactory) factory)
+          .getNodeHandle(bootaddress);
+      
       // construct a node, passing the null boothandle on the first loop will
       // cause the node to start its own ring
-      PastryNode node = factory.newNode();
-
-      // used for generating PastContent object Ids.
-      // this implements the "hash function" for our DHT
-      PastryIdFactory idf = new rice.pastry.commonapi.PastryIdFactory(env);
-      
-      // create a different storage root for each node
-      String storageDirectory = "./storage"+node.getId().hashCode();
-
-      // create the persistent part
-//      Storage stor = new PersistentStorage(idf, storageDirectory, 4 * 1024 * 1024, node
-//          .getEnvironment());
-      Storage stor = new MemoryStorage(idf);
-      Past app = new PastImpl(node, new StorageManagerImpl(idf, stor, new LRUCache(
-          new MemoryStorage(idf), 512 * 1024, node.getEnvironment())), 0, "");
-      
-      apps.add(app);      
-
-      node.boot(bootaddress);
-      
+      PastryNode node = factory.newNode((rice.pastry.NodeHandle) bootHandle);
+      node.setFactory((SocketPastryNodeFactory)factory);
+      node.setBootAddress(bootaddress);
+      if (node.getFactory() == null) {
+        System.out.println("Couldn't set factory");
+      }
       // the node may require sending several messages to fully boot into the ring
       synchronized(node) {
         while(!node.isReady() && !node.joinFailed()) {
@@ -124,12 +114,37 @@ public class PastTutorial {
         }       
       }
       
-      System.out.println("Finished creating new node " + node);      
+      System.out.println("Finished creating new node " + node);
+      
+      
+      // used for generating PastContent object Ids.
+      // this implements the "hash function" for our DHT
+      PastryIdFactory idf = new rice.pastry.commonapi.PastryIdFactory(env);
+      
+      // create a different storage root for each node
+      String storageDirectory = "./storage"+node.getId().hashCode();
+
+      // create the persistent part
+      //      Storage stor = new PersistentStorage(idf, storageDirectory, 4 * 1024 * 1024, node
+      //          .getEnvironment());
+      Storage stor = new MemoryStorage(idf);
+      Past app = new PastImpl(node, new StorageManagerImpl(idf, stor, new LRUCache(
+          new MemoryStorage(idf), 512 * 1024, node.getEnvironment())), 0, "");
+
+      apps.add(app);    
     }
     
     // wait 5 seconds
     env.getTimeSource().sleep(5000);
 
+    Past app = apps.get(0);
+    PastryNode node = app.getPastryNode();
+    System.out.println("Scale out to 2");
+    app.scaleUp(node, 2);
+    if (node.numVnodes() != 2) {
+         System.out.println("Scale-Up not successful, cur scaling factor: " + node.numVnodes());
+    }
+    
     // We could cache the idf from whichever app we use, but it doesn't matter
     PastryIdFactory localFactory = new rice.pastry.commonapi.PastryIdFactory(env);
 
@@ -142,7 +157,7 @@ public class PastTutorial {
       final String s = "test" + env.getRandomSource().nextInt();
       
       // build the past content
-      final PastContent myContent = new MyPastContent(localFactory.buildId(s), s);
+      final PastContent myContent = new MyVnodePastContent(localFactory.buildId(s), s);
     
       // store the key for a lookup at a later point
       storedKey[ctr] = myContent.getId();
@@ -152,9 +167,10 @@ public class PastTutorial {
       System.out.println("Inserting " + myContent + " at node "+p.getLocalNodeHandle());
       
       // insert the data
-      p.insert(myContent, new Continuation<Boolean[], Exception>() {
+      p.insert(myContent, new Continuation() {
         // the result is an Array of Booleans for each insert
-        public void receiveResult(Boolean[] results) {          
+        public void receiveResult(Object result) {          
+          Boolean[] results = ((Boolean[]) result);
           int numSuccessfulStores = 0;
           for (int ctr = 0; ctr < results.length; ctr++) {
             if (results[ctr].booleanValue()) 
@@ -185,8 +201,8 @@ public class PastTutorial {
       Past p = (Past)apps.get(env.getRandomSource().nextInt(numNodes));
 
       System.out.println("Looking up " + lookupKey + " at node "+p.getLocalNodeHandle());
-      p.lookup(lookupKey, new Continuation<PastContent, Exception>() {
-        public void receiveResult(PastContent result) {
+      p.lookup(lookupKey, new Continuation() {
+        public void receiveResult(Object result) {
           System.out.println("Successfully looked up " + result + " for key "+lookupKey+".");
         }
   
@@ -208,8 +224,8 @@ public class PastTutorial {
     Past p = (Past)apps.get(env.getRandomSource().nextInt(numNodes));
 
     System.out.println("Looking up bogus key " + bogusKey + " at node "+p.getLocalNodeHandle());
-    p.lookup(bogusKey, new Continuation<PastContent, Exception>() {
-      public void receiveResult(PastContent result) {
+    p.lookup(bogusKey, new Continuation() {
+      public void receiveResult(Object result) {
         System.out.println("Successfully looked up " + result + " for key "+bogusKey+".  Notice that the result is null.");
         env.destroy();
       }
@@ -220,6 +236,9 @@ public class PastTutorial {
         env.destroy();
       }
     });
+
+    // Lets testout scale-out factor:
+    
   }
 
   /**
@@ -247,7 +266,7 @@ public class PastTutorial {
       int numNodes = Integer.parseInt(args[3]);
 
       // launch our node!
-      PastTutorial dt = new PastTutorial(bindport, bootaddress, numNodes, env);
+      VnodePastTutorial dt = new VnodePastTutorial(bindport, bootaddress, numNodes, env);
     } catch (Exception e) {
       // remind user how to use
       System.out.println("Usage:");

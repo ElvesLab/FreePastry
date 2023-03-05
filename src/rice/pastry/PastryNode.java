@@ -66,6 +66,7 @@ import rice.p2p.commonapi.exception.AppSocketException;
 import rice.p2p.commonapi.exception.NoReceiverAvailableException;
 import rice.p2p.commonapi.rawserialization.InputBuffer;
 import rice.p2p.commonapi.rawserialization.RawMessage;
+import rice.p2p.past.Past;
 import rice.pastry.boot.Bootstrapper;
 import rice.pastry.client.PastryAppl;
 import rice.pastry.join.JoinProtocol;
@@ -79,6 +80,7 @@ import rice.pastry.transport.PMessageNotification;
 import rice.pastry.transport.PMessageReceipt;
 import rice.pastry.transport.PMessageReceiptImpl;
 import rice.pastry.transport.SocketAdapter;
+import rice.pastry.socket.SocketPastryNodeFactory;
 
 /**
  * A Pastry node is single entity in the pastry network.
@@ -129,6 +131,16 @@ public class PastryNode extends Observable implements
   
   protected Router router;
   
+  protected boolean isVnode = false;
+
+  protected NodeHandle physicalNodeHandle;
+
+  protected Vector vNodes;
+
+  protected SocketPastryNodeFactory factory;
+
+  protected InetSocketAddress bootaddr;
+
   /**
    * Used to deserialize NodeHandles
    */
@@ -164,6 +176,7 @@ public class PastryNode extends Observable implements
     readyStrategy = getDefaultReadyStrategy();
     
     apps = new Vector();
+    vNodes = new Vector();
     logger = e.getLogManager().getLogger(getClass(), null);
     e.addDestructable(this);
   }
@@ -180,6 +193,50 @@ public class PastryNode extends Observable implements
     }
   }
   
+  public void setBootAddress(InetSocketAddress bootaddress) {
+    this.bootaddr = bootaddress;
+  }
+
+  public void setFactory(SocketPastryNodeFactory factory) {
+    this.factory = factory;
+  }
+
+  public SocketPastryNodeFactory getFactory() {
+    return this.factory;
+  }
+
+  public boolean isVnode() {
+    return this.isVnode;
+  }
+
+  public PastryNode createVnodeInstance() throws Exception {
+    NodeHandle bootHandle = factory.getNodeHandle(this.bootaddr);
+    PastryNode node = factory.newNode((rice.pastry.NodeHandle) bootHandle);
+    synchronized(node) {
+      while(!node.isReady() && !node.joinFailed()) {
+        // delay so we don't busy-wait
+        node.wait(500);        
+        // abort if can't join
+        if (node.joinFailed()) {
+          throw new IOException("Could not join the FreePastry ring.  Reason:"+node.joinFailedReason()); 
+        }
+      }       
+    }
+    node.factory = this.factory;
+    node.isVnode = true;
+    node.physicalNodeHandle = this.localhandle;
+    vNodes.add(node.localhandle);
+
+    return node;
+  }
+
+  public int numVnodes() {
+    return vNodes.size();
+  }
+  public void addPastApp(Past app) { 
+    apps.add(app);
+  }
+
   @SuppressWarnings("unchecked")
   public void boot(Collection o2) {
     ArrayList o = new ArrayList(o2);

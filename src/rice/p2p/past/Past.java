@@ -41,6 +41,7 @@ import rice.*;
 import rice.environment.Environment;
 import rice.p2p.commonapi.*;
 import rice.p2p.past.rawserialization.*;
+import rice.pastry.PastryNode;
 
 /**
  * @(#) Past.java
@@ -60,7 +61,8 @@ import rice.p2p.past.rawserialization.*;
  */
 @SuppressWarnings("unchecked")
 public interface Past {
-
+  public void scaleUp(PastryNode node, int scalingFactor) throws Exception;
+  public PastryNode getPastryNode();
   /**
    * Inserts an object with the given ID into this instance of Past.
    * Asynchronously returns a PastException to command, if the
