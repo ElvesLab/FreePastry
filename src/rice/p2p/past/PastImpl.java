@@ -1050,11 +1050,26 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
 
     if (msg.isResponse()) {
       handleResponse((PastMessage) message);
+    } else if (this.thePastryNode.isVnode()) {
+      System.out.println("vnode start route to " + this.thePastryNode.getPhysicalNodeId());
+      // vnode need to route all mesages to its physical node
+      sendRequest(this.thePastryNode.getPhysicalNodeId(), msg, new Continuation() {
+        @Override
+        public void receiveResult(Object result) {
+          System.out.println("VNode route successfully");
+        }
+
+        @Override
+        public void receiveException(Exception exception) {
+          System.out.println("VNode route Error");
+          exception.printStackTrace();
+        }
+      });
     } else {
       if (logger.level <= Logger.INFO) logger.log("Received message " + message + " with destination " + id);
       
       if (msg instanceof InsertMessage) {
-        final InsertMessage imsg = (InsertMessage) msg;        
+        final InsertMessage imsg = (InsertMessage) msg;
         
         // make sure the policy allows the insert
         if (thePastryNode.isVnode() == false && policy.allowInsert(imsg.getContent())) {

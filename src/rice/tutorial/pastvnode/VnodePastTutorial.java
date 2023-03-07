@@ -151,7 +151,7 @@ public class VnodePastTutorial {
     // Store 5 keys
     // let's do the "put" operation
     System.out.println("Storing 5 keys");
-    Id[] storedKey = new Id[5];
+    Id[] storedKey = new Id[1000];
     for(int ctr = 0; ctr < storedKey.length; ctr++) {
       // these variables are final so that the continuation can access them
       final String s = "test" + env.getRandomSource().nextInt();
@@ -188,7 +188,7 @@ public class VnodePastTutorial {
     }
     
     // wait 5 seconds
-    env.getTimeSource().sleep(5000);
+    env.getTimeSource().sleep(500);
     
     // let's do the "get" operation
     System.out.println("Looking up the 5 keys");
@@ -214,7 +214,7 @@ public class VnodePastTutorial {
     }
     
     // wait 5 seconds
-    env.getTimeSource().sleep(5000);
+    env.getTimeSource().sleep(500);
     
     // now lets see what happens when we do a "get" when there is nothing at the key
     System.out.println("Looking up a bogus key");

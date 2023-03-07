@@ -109,6 +109,8 @@ public class PastryNode extends Observable implements
   
   protected Id myNodeId;
 
+  protected Id physicalNodeId;
+
   private Environment myEnvironment;
 
   private MessageDispatch myMessageDispatch;
@@ -209,6 +211,10 @@ public class PastryNode extends Observable implements
     return this.isVnode;
   }
 
+  public Id getPhysicalNodeId() {
+    return physicalNodeId;
+  }
+
   public PastryNode createVnodeInstance() throws Exception {
     NodeHandle bootHandle = factory.getNodeHandle(this.bootaddr);
     PastryNode node = factory.newNode((rice.pastry.NodeHandle) bootHandle);
@@ -225,6 +231,7 @@ public class PastryNode extends Observable implements
     node.factory = this.factory;
     node.isVnode = true;
     node.physicalNodeHandle = this.localhandle;
+    node.physicalNodeId = this.getNodeId();
     vNodes.add(node.localhandle);
 
     return node;
