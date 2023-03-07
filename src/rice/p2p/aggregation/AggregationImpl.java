@@ -68,6 +68,7 @@ import rice.p2p.past.gc.rawserialization.RawGCPastContent;
 import rice.p2p.past.rawserialization.*;
 import rice.p2p.util.DebugCommandHandler;
 import rice.p2p.util.rawserialization.SimpleOutputBuffer;
+import rice.pastry.PastryNode;
 import rice.persistence.StorageManager;
 import rice.p2p.glacier.v2.GlacierContentHandle;
 
@@ -2461,5 +2462,17 @@ public class AggregationImpl implements GCPast, VersioningPast, Aggregation, App
   public void setContentHandleDeserializer(PastContentHandleDeserializer deserializer) {
     contentHandleDeserializer = deserializer;
     objectStore.setContentHandleDeserializer(deserializer);
+  }
+
+  @Override
+  public void scaleUp(PastryNode node, int scalingFactor) throws Exception {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'scaleUp'");
+  }
+
+  @Override
+  public PastryNode getPastryNode() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'getPastryNode'");
   }
 }

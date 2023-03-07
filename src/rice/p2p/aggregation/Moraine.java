@@ -50,6 +50,7 @@ import rice.p2p.past.PastContentHandle;
 import rice.p2p.past.gc.GCPast;
 import rice.p2p.past.rawserialization.PastContentDeserializer;
 import rice.p2p.past.rawserialization.PastContentHandleDeserializer;
+import rice.pastry.PastryNode;
 
 /**
  * This Past takes 2 pasts, an old Past and a new
@@ -282,6 +283,18 @@ public class Moraine implements GCPast, VersioningPast {
         receiveResult(null);
       }
     }); 
+  }
+
+  @Override
+  public void scaleUp(PastryNode node, int scalingFactor) throws Exception {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'scaleUp'");
+  }
+
+  @Override
+  public PastryNode getPastryNode() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'getPastryNode'");
   }
 
 }

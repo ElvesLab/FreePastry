@@ -56,6 +56,7 @@ import rice.p2p.past.gc.GCPast;
 import rice.p2p.past.gc.GCPastContent;
 import rice.p2p.past.rawserialization.*;
 import rice.p2p.util.DebugCommandHandler;
+import rice.pastry.PastryNode;
 import rice.persistence.Storage;
 import rice.persistence.StorageManager;
 import rice.persistence.PersistentStorage;
@@ -3857,6 +3858,18 @@ public class GlacierImpl implements Glacier, GCPast, VersioningPast, Application
 
   public void setContentHandleDeserializer(PastContentHandleDeserializer deserializer) {
     contentHandleDeserializer = deserializer;
+  }
+
+  @Override
+  public void scaleUp(PastryNode node, int scalingFactor) throws Exception {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'scaleUp'");
+  }
+
+  @Override
+  public PastryNode getPastryNode() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'getPastryNode'");
   }
 
 
