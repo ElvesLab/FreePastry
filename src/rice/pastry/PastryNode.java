@@ -137,7 +137,7 @@ public class PastryNode extends Observable implements
 
   protected NodeHandle physicalNodeHandle;
 
-  protected Vector vNodes;
+  protected Vector<NodeHandle> vNodes;
 
   protected SocketPastryNodeFactory factory;
 
@@ -214,6 +214,10 @@ public class PastryNode extends Observable implements
   public Id getPhysicalNodeId() {
     return physicalNodeId;
   }
+  
+  public NodeHandle getPhysicalNodeHandle() {
+    return physicalNodeHandle;
+  }
 
   public PastryNode createVnodeInstance() throws Exception {
     NodeHandle bootHandle = factory.getNodeHandle(this.bootaddr);
@@ -228,10 +232,12 @@ public class PastryNode extends Observable implements
         }
       }       
     }
+
     node.factory = this.factory;
     node.isVnode = true;
     node.physicalNodeHandle = this.localhandle;
     node.physicalNodeId = this.getNodeId();
+    
     vNodes.add(node.localhandle);
 
     return node;
@@ -469,6 +475,10 @@ public class PastryNode extends Observable implements
 
   public RoutingTable getRoutingTable() {
     return routeSet;
+  }
+
+  public Vector<NodeHandle> getVnodeHandles() {
+    return vNodes;
   }
 
   /**

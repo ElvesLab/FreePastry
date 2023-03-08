@@ -125,9 +125,9 @@ public class VnodePastTutorial {
       String storageDirectory = "./storage"+node.getId().hashCode();
 
       // create the persistent part
-      //      Storage stor = new PersistentStorage(idf, storageDirectory, 4 * 1024 * 1024, node
-      //          .getEnvironment());
-      Storage stor = new MemoryStorage(idf);
+           Storage stor = new PersistentStorage(idf, storageDirectory, 4 * 1024 * 1024, node
+               .getEnvironment());
+      // Storage stor = new MemoryStorage(idf);
       Past app = new PastImpl(node, new StorageManagerImpl(idf, stor, new LRUCache(
           new MemoryStorage(idf), 512 * 1024, node.getEnvironment())), 0, "");
 
@@ -151,7 +151,7 @@ public class VnodePastTutorial {
     // Store 5 keys
     // let's do the "put" operation
     System.out.println("Storing 5 keys");
-    Id[] storedKey = new Id[1000];
+    Id[] storedKey = new Id[20];
     for(int ctr = 0; ctr < storedKey.length; ctr++) {
       // these variables are final so that the continuation can access them
       final String s = "test" + env.getRandomSource().nextInt();
@@ -167,13 +167,12 @@ public class VnodePastTutorial {
       System.out.println("Inserting " + myContent + " at node "+p.getLocalNodeHandle());
       
       // insert the data
-      p.insert(myContent, new Continuation() {
+      p.insert(myContent, new Continuation<Boolean[], Exception>() {
         // the result is an Array of Booleans for each insert
-        public void receiveResult(Object result) {          
-          Boolean[] results = ((Boolean[]) result);
+        public void receiveResult(Boolean[] result) {          
           int numSuccessfulStores = 0;
-          for (int ctr = 0; ctr < results.length; ctr++) {
-            if (results[ctr].booleanValue()) 
+          for (int ctr = 0; ctr < result.length; ctr++) {
+            if (result[ctr].booleanValue()) 
               numSuccessfulStores++;
           }
           System.out.println(myContent + " successfully stored at " + 
@@ -185,6 +184,8 @@ public class VnodePastTutorial {
           result.printStackTrace();
         }
       });
+
+      env.getTimeSource().sleep(2000);
     }
     
     // wait 5 seconds
@@ -201,7 +202,7 @@ public class VnodePastTutorial {
       Past p = (Past)apps.get(env.getRandomSource().nextInt(numNodes));
 
       System.out.println("Looking up " + lookupKey + " at node "+p.getLocalNodeHandle());
-      p.lookup(lookupKey, new Continuation() {
+      p.lookup(lookupKey, false, new Continuation() {
         public void receiveResult(Object result) {
           System.out.println("Successfully looked up " + result + " for key "+lookupKey+".");
         }

@@ -425,6 +425,12 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
       public void receiveResult(Object o) {
         cmsg.receiveResult(o);
         endpoint.route(null, cmsg, msg.getSource());
+        if (!thePastryNode.isVnode() && thePastryNode.numVnodes() > 0) {
+          Vector<rice.pastry.NodeHandle> vnodes = thePastryNode.getVnodeHandles();
+          for (rice.p2p.commonapi.NodeHandle handle : vnodes) {
+            endpoint.route(null, cmsg, handle);
+          }
+        }
       }
 
       public void receiveException(Exception e) {
@@ -755,10 +761,6 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
     if (logger.level <= Logger.FINER) logger.log("Inserting the object " + obj + " with the id " + obj.getId());
     
     if (logger.level <= Logger.FINEST) logger.log(" Inserting data of class " + obj.getClass().getName() + " under " + obj.getId().toStringFull());
-    if (thePastryNode.isVnode() == true) {
-      //Forward it to the parent
-      return;
-    }
 
     doInsert(obj.getId(), new MessageBuilder() {
       public PastMessage buildMessage() {
@@ -766,6 +768,7 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
       }
     }, new StandardContinuation(command) {
       public void receiveResult(final Object array) {
+        parent.receiveResult(array);
         // block cache for now
         // cache(obj, new SimpleContinuation()  {
         //   public void receiveResult(Object o) {
@@ -1025,7 +1028,7 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
     } else if (internal instanceof LookupHandlesMessage) {
       LookupHandlesMessage lmsg = (LookupHandlesMessage) internal;
       
-      if (! lmsg.isResponse()  && thePastryNode.isVnode() == false) {
+      if (! lmsg.isResponse()) {
         if (endpoint.replicaSet(lmsg.getId(), lmsg.getMax()).size() == lmsg.getMax()) {          
           if (logger.level <= Logger.FINE) logger.log("Hijacking lookup handles request for " + lmsg.getId());
           
@@ -1049,30 +1052,34 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
     final PastMessage msg = (PastMessage) message;
 
     if (msg.isResponse()) {
-      handleResponse((PastMessage) message);
-    } else if (this.thePastryNode.isVnode()) {
-      System.out.println("vnode start route to " + this.thePastryNode.getPhysicalNodeId());
-      // vnode need to route all mesages to its physical node
-      sendRequest(this.thePastryNode.getPhysicalNodeId(), msg, new Continuation() {
-        @Override
-        public void receiveResult(Object result) {
-          System.out.println("VNode route successfully");
-        }
-
-        @Override
-        public void receiveException(Exception exception) {
-          System.out.println("VNode route Error");
-          exception.printStackTrace();
-        }
-      });
+      handleResponse(msg);
     } else {
       if (logger.level <= Logger.INFO) logger.log("Received message " + message + " with destination " + id);
       
+      if (this.thePastryNode.isVnode()) {
+        logger.log("Vnode start route " + msg.getUID() + " to " + this.thePastryNode.getPhysicalNodeId());
+        sendViaSocket(this.thePastryNode.getPhysicalNodeHandle(), msg,
+            new StandardContinuation(getResponseContinuation(msg)) {
+              @Override
+              public void receiveResult(Object result) {
+                logger.log("VNode route successfully");
+                getResponseContinuation(msg).receiveResult(result);
+              }
+
+              @Override
+              public void receiveException(Exception exception) {
+                logger.log("VNode route Error");
+                exception.printStackTrace();
+              }
+            });
+        return;
+      }
+
       if (msg instanceof InsertMessage) {
         final InsertMessage imsg = (InsertMessage) msg;
         
         // make sure the policy allows the insert
-        if (thePastryNode.isVnode() == false && policy.allowInsert(imsg.getContent())) {
+        if (policy.allowInsert(imsg.getContent())) {
           inserts++;
           final Id msgid = imsg.getContent().getId();
           
