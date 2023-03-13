@@ -250,6 +250,12 @@ public class PastryNode extends Observable implements
     apps.add(app);
   }
 
+  public NodeHandle removeVnode(int index) {
+    NodeHandle node = vNodes.remove(index);
+    System.out.println("Removing the Vnode: " + node.getNodeId() + "from physicalNode: " + this.getNodeId());
+    return node;
+  }
+
   @SuppressWarnings("unchecked")
   public void boot(Collection o2) {
     ArrayList o = new ArrayList(o2);

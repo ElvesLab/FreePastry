@@ -3866,6 +3866,13 @@ public class GlacierImpl implements Glacier, GCPast, VersioningPast, Application
     throw new UnsupportedOperationException("Unimplemented method 'scaleUp'");
   }
 
+
+  @Override
+  public void scaleDown(PastryNode node, int scalingFactor) throws Exception {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'scaleDown'");
+  }
+
   @Override
   public PastryNode getPastryNode() {
     // TODO Auto-generated method stub

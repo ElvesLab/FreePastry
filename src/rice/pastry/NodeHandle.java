@@ -132,7 +132,7 @@ public abstract class NodeHandle extends rice.p2p.commonapi.NodeHandle implement
   /**
    * Accessor method.
    */
-  public final PastryNode getLocalNode() {
+  public PastryNode getLocalNode() {
     return localnode;
   }
 

@@ -1,3 +1,4 @@
+
 /*******************************************************************************
 
 "FreePastry" Peer-to-Peer Application Development Substrate
@@ -289,6 +290,12 @@ public class Moraine implements GCPast, VersioningPast {
   public void scaleUp(PastryNode node, int scalingFactor) throws Exception {
     // TODO Auto-generated method stub
     throw new UnsupportedOperationException("Unimplemented method 'scaleUp'");
+  }
+
+  @Override
+  public void scaleDown(PastryNode node, int scalingFactor) throws Exception {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'scaleDown'");
   }
 
   @Override

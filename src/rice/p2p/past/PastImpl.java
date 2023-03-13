@@ -214,9 +214,25 @@ public class PastImpl implements Past, Application, ReplicationManagerClient {
       }
   }
 
-  public void scaleDown() {
+  public void scaleDown(PastryNode node, int scalingFactor) throws Exception{
+      int curCount = node.numVnodes();
+      System.out.println("Cur count of vNodes: " + curCount);
+      if (curCount <= scalingFactor) return;
+      NodeHandle phyHandle = node.getPhysicalNodeHandle();
+      PastryNode phyNode = phyHandle.getLocalNode();
 
+      while (curCount > scalingFactor) {
+          // Each vNode holds reference to the physical node
+          // Node has a vector of vNodes
+          NodeHandle hdl = phyNode.removeVnode(curCount-1);
+          PastryNode vnode = hdl.getLocalNode();
+
+          // SHould we deregister API endpoints on this node?
+          vnode.destroy();// Kills a pastry node
+          curCount--;
+      }
   }
+ 
 
   /**
    * 

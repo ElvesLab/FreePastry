@@ -2471,6 +2471,12 @@ public class AggregationImpl implements GCPast, VersioningPast, Aggregation, App
   }
 
   @Override
+  public void scaleDown(PastryNode node, int scalingFactor) throws Exception {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'scaleDown'");
+  }
+
+  @Override
   public PastryNode getPastryNode() {
     // TODO Auto-generated method stub
     throw new UnsupportedOperationException("Unimplemented method 'getPastryNode'");

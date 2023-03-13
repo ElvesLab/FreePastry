@@ -62,6 +62,8 @@ import rice.pastry.PastryNode;
 @SuppressWarnings("unchecked")
 public interface Past {
   public void scaleUp(PastryNode node, int scalingFactor) throws Exception;
+  public void scaleDown(PastryNode node, int scalingFactor) throws Exception;
+  
   public PastryNode getPastryNode();
   /**
    * Inserts an object with the given ID into this instance of Past.
